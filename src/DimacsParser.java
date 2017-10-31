@@ -6,93 +6,156 @@ import java.util.*;
 public class DimacsParser {
 
     //Daten aus der P Zeile
-    private int pVars ;
-    private int pClauses ;
+    private int pVars; /* total number of variables according to document definition */
+    private int pClauses; /* total number of clauses according to document definition  */
 
-    private int countClauses ;
-    private Set<Integer> literales = new HashSet<Integer>();
-    private Map<Integer, Integer> vars = new HashMap<Integer, Integer>();
-    private List<Integer> unitClausels = new ArrayList<>();
-    private Map.Entry<Integer, Integer> maxEntry = null;
+    private int clauseCount; /* true number of clauses occuring in document */
+    private Set<Integer> literalCounts = new HashSet<>(); /* Set of literals. Duplicates of can be semantically ignores => Set */
+    private Map<Integer, Integer> varCounts = new HashMap<>();  /* variables mapped to number of occurrences*/
+    private List<String[]> unitClausels = new ArrayList<>(); /* list of clauses which contain only a single literal */
+
+    public DimacsParser() {
+      reset();
+    }
 
     /**
-     * Bestimmen von literales,vars,clausels
+     * Werte zurücksetzen
+     */
+    private void reset(){
+        pVars = 0;
+        pClauses = 0;
+        clauseCount = 0;
+        literalCounts = new HashSet<Integer>();
+        varCounts = new HashMap<Integer, Integer>();
+        unitClausels = new ArrayList<>();
+    }
+
+    /**
+     * Bestimmen von literalCounts,varCounts,clausels
      * @param data
      * @throws IOException
      */
     private void parser(List<String> data) throws IOException {
         reset();
+
         for (String line : data) {
+            // Skip coment lines: "c<comment>"
             if (line.startsWith("c") || line.isEmpty()) {
                 continue;
             }
-            String[] parts = line.split("\\s+");
 
+            // Split line by one or more spaces
+            String[] clause = line.split("\\s+");
+
+            // Parse metadata-line: "p <totalVars> <totalClauses>"
             if (line.startsWith("p")) {
-                pVars = Integer.parseInt(parts[parts.length - 2]);
-                pClauses = Integer.parseInt(parts[parts.length - 1]);
+                pVars = Integer.parseInt(clause[clause.length - 2]);
+                pClauses = Integer.parseInt(clause[clause.length - 1]);
                 continue;
             }
-            // DATA
-            for (String literal : parts) {
-                if(literal.equals(""))break;
-                int part = Integer.parseInt(literal);
-                //0 = zeilenende
-                if (part == 0) break;
 
-                literales.add(part);
+            // Each line is a clause, e.g. -3 2 5 -42
+            // Iterate through all literals of current clause
+            for (String literalStr : clause) {
+                if(literalStr.equals("")) break;
+                int literal = Integer.parseInt(literalStr);
+                // 0 denotes end of clause
+                if (literal == 0) {
+                  // unitClausel consists only of a single literal
+                  if (isUnit(clause)) {
+                    String[] clauseWithoutEOL = Arrays.copyOf(clause, clause.length-1);
+                    unitClausels.add(clauseWithoutEOL);
+                  }
+                  break;
+                }
+                // Count
+                literalCounts.add(literal);
 
                 //Variablen speichern falls schon vorhanden häufigkeit um 1 erhöhen.
-                int count = vars.containsKey(Math.abs(part)) ? vars.get(Math.abs(part)) : 0;
-                vars.put(Math.abs(part), count + 1);
-
-                //unitClausel bestimmen
-                if (parts.length <= 2) {
-                    unitClausels.add(part);
-                }
+                int var = Math.abs(literal);
+                int oldCount = varCounts.containsKey(var) ? varCounts.get(var) : 0; // old count, if exists
+                varCounts.put(var, oldCount + 1);
             }
 
-            countClauses += 1;
+            clauseCount++;
 
         }
-        getMaxEntry();
-        print();
+    }
+
+    private boolean isUnit(String[] clause) {
+      return clause.length == 2; // contains only literal and 0 as eol
     }
 
     /**
      * Ausgabe der Statistik
      */
-    private void print() {
-        System.out.println("Problem line: #vars " + pVars + " ,#clauses : " + pClauses);
-        System.out.println("Variable count= " + vars.size());
-        System.out.println("Clause count= " + countClauses);
-        System.out.println("Literal count= " + literales.size());
-        System.out.println("Maximum occurrences of variable= " + maxEntry.getValue());
-        System.out.println("Variables with maximum number occurrences= " + maxEntry.getKey());
-        System.out.println("Positive pure literals" + getPureLiteralPos());
-        System.out.println("Negative pure literals" + getPureLiteralNeg());
-        System.out.println("unitClausel= " + unitClausels);
+    public void print() {
+        System.out.println("Problem line: #vars " + pVars + ", #clauses : " + pClauses);
+        System.out.println("Variable count: " + varCounts.size());
+        System.out.println("Clause count: " + clauseCount);
+        System.out.println("Literal count: " + literalCounts.size());
+        System.out.println("Maximum occurrences of variable: " + getMaxVarCount());
+        System.out.println("Variables with maximum number occurrences: " + getMaxEntries());
+        System.out.println("Positive pure literals: " + getPureLiteralPos());
+        System.out.println("Negative pure literals: " + getPureLiteralNeg());
+        System.out.println("unitClausels: " + Arrays.toString(clausesToString(unitClausels)));
         System.out.println("");
 
+    }
+
+    private String[] clausesToString(List<String[]> clausels) {
+      String[] ret = new String[clausels.size()];
+      for(int i = 0; i < clausels.size(); i++) {
+        ret[i] = clauseToString(clausels.get(i));
+      }
+      return ret;
+    }
+
+    private String clauseToString(String[] clause) {
+      String ret = "";
+      for(int i = 0; i < clause.length; i++) {
+        String literal = clause[i];
+        if(literal == "0") break;
+        ret = literal;
+        if(i < clause.length - 1) {
+          ret += ' ';
+        }
+      }
+      return ret;
+    }
+
+    private int getMaxVarCount() {
+      int max = 0;
+      for (Map.Entry<Integer, Integer> entry : varCounts.entrySet()) {
+        if (entry.getValue() > max) {
+            max = entry.getValue();
+        }
+      }
+      return max;
     }
 
     /**
      *Tupel aus Wert und max(Häufigkeit).
      *
      */
-    private void getMaxEntry(){
-        for (Map.Entry<Integer, Integer> entry : vars.entrySet()) {
-            if (maxEntry == null || entry.getValue().compareTo(maxEntry.getValue()) > 0) {
-                maxEntry = entry;
-            }
+    private List<Integer> getMaxEntries(){
+      int maxVarOccCnt = getMaxVarCount();
+      List<Integer> maxOccVariables = new ArrayList<>();
+
+      for (Map.Entry<Integer, Integer> entry : varCounts.entrySet()) {
+        if (entry.getValue() == maxVarOccCnt) {
+          maxOccVariables.add(entry.getKey());
         }
+      }
+
+      return maxOccVariables;
     }
 
     private  Set<Integer> getPureLiteralPos() {
         Set<Integer> lite = new HashSet<Integer>();
-        for (int l : literales) {
+        for (int l : literalCounts) {
             if (l>0)
-                if (!literales.contains(-l)) {
+                if (!literalCounts.contains(-l)) {
                     lite.add(l);
                 }
         }
@@ -100,9 +163,9 @@ public class DimacsParser {
     }
     private  Set<Integer> getPureLiteralNeg() {
         Set<Integer> lite = new HashSet<Integer>();
-        for (int l : literales) {
+        for (int l : literalCounts) {
             if (l<0)
-                if (!literales.contains(-l)) {
+                if (!literalCounts.contains(-l)) {
                     lite.add(l);
                 }
         }
@@ -121,18 +184,5 @@ public class DimacsParser {
         List<String> data = Files.readAllLines(Paths.get(path));
         parser(data);
 
-    }
-
-    /**
-     * Werte zurücksetzen
-     */
-    private void reset(){
-        pVars = 0;
-        pClauses =0;
-        countClauses =0;
-        literales = new HashSet<Integer>();
-        vars = new HashMap<Integer, Integer>();
-        unitClausels = new ArrayList<>();
-        maxEntry = null;
     }
 }
