@@ -3,7 +3,7 @@ package praxisblatt03.parser;
 import praxisblatt03.dataStructure.*;
 
 public class Dimacs {
-  private static String instances_path = "./";
+  private static String instances_path = "./sat_instances/";
   private static String instances[] = {
           "formula01.cnf",
           "formula02.cnf",
