@@ -90,6 +90,9 @@ public class ClauseSet {
 		//System.out.println("Units: \n"+units);
 		// Get unassigned literal of current unit clause
 		int lit = unitClause.getUnassigned(variables);
+		if(lit == 0) {
+			System.out.println();
+		}
 
 		int varId = Math.abs(lit);
 

@@ -33,10 +33,10 @@ public class CDCL {
      * Den CDCL Algorithmus finden Sie als Pseudo Code auf den Folien zur Vorlesung.
      */
     public boolean solve() {
-        for(int i = 0; i < 25; i++) {
+        for(int i = 0; i < 100; i++) {
             System.out.println(instance.clausesToString());
             // Unit Propagation
-            System.out.println("\n\nDoing UP with "+instance.units);
+            System.out.println("\n\n("+i+") Doing UP with "+instance.units);
             Clause emptyClause = instance.unitPropagation(level, stack);
             System.out.println("Units are now: \n"+instance.units);
             printVariables();
@@ -65,12 +65,12 @@ public class CDCL {
      */
     private void backtrack(int lvl) {
         System.out.println("Jumping back from level "+level+" to "+lvl);
-        Variable v;
-        do {
+        Variable v = stack.peek();
+        while(!stack.empty() && stack.peek().level > lvl) {
             v = stack.pop();
             level = v.level;
             v.reset(instance.variables, instance.units);
-        } while(level - 1 > lvl);
+        }
         System.out.println("Now at level "+level);
     }
 
@@ -78,6 +78,7 @@ public class CDCL {
     *  Diese Methode berechnet die Resolvente zwischen c1 und c2 und gibt diese als neue Klausel zurück.
     */
     private Clause resolve(Clause c1, Clause c2) {
+        //if(c2 == null) return c1;
         Set<Integer> allLiterals = new HashSet<>();
 
         allLiterals.addAll(c1.getLiterals());
@@ -131,14 +132,15 @@ public class CDCL {
 
         Variable lastVariableBeforeConflict = stack.peek();
         Clause reason = lastVariableBeforeConflict.reason;
+        System.out.println("Last Variable was "+lastVariableBeforeConflict+" at level "+lastVariableBeforeConflict.level);
+        System.out.println("Conflict clause : "+conflict + " with reason "+reason);
         Clause newClause = resolve(conflict, reason);
         Variable [] deepestVars = twoDeepestVars(newClause);
-        System.out.println("Last Variable was "+lastVariableBeforeConflict+" at level "+lastVariableBeforeConflict.level+" resulting in conflict clause : "+conflict);
 
         while(deepestVars[1] != null && deepestVars[0].level == deepestVars[1].level) { // while multiple on same level
-            System.out.println("New clause: "+newClause+", reason: "+reason);
             Variable cv = deepestVars[0];
             reason = cv.reason;
+            System.out.println("New clause: "+newClause+", reason: "+reason);
             newClause = resolve(newClause, reason);
             deepestVars = twoDeepestVars(newClause);
 
@@ -156,11 +158,10 @@ public class CDCL {
     private Variable[] twoDeepestVars(Clause c) {
         Variable [] max = {null, null}; // 0 is largest, 1 is snd largest
         for(Variable v : c.getVariables(instance.variables)) {
-            //if(v.reason == null) continue;
-            if(max[0] == null || v.level > max[0].level) {
+            if(max[0] == null || v.level > max[0].level || (v.level >= max[0].level && v.reason != null)) {
                 max[1] = max[0];
                 max[0] = v;
-            } else if(max[1] == null || v.level > max[1].level) {
+            } else if(max[1] == null || v.level > max[1].level || (v.level >= max[1].level && v.reason != null)) {
                 max[1] = v;
             }
         }

@@ -7,7 +7,8 @@ public class Dimacs {
   private static String instances_path = "./sat_instances/";
   private static String instances[] = {
         //  "formula01.cnf",
-            "small_aim/yes/aim-50-1_6-yes1-2.cnf",
+            "small_aim/yes/aim-50-1_6-yes1-1.cnf",
+         //   "small_aim/no/aim-50-1_6-no-1.cnf",
   };
 
   public static void main(String[] args) {

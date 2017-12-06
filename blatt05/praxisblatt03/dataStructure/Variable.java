@@ -123,6 +123,7 @@ public class Variable {
 					} else if (ret == Clause.ClauseState.UNIT) { //Gibt reWatch zurück, dass die Klausel nun unit ist (UNIT)
 
 						// so soll die Klausel zu der Liste units hinzugefügt werden.
+						System.out.println("Clause "+clause+" became unit.");
 						units.add(clause);
 
 					}
@@ -143,7 +144,13 @@ public class Variable {
 		state = State.OPEN;
 		reason = null;
 		level = 0;
-		for(Clause clause: getWatchedClauses()) {
+		for(Clause c : watched) {
+			if(c.lit1 == c.lit2) {
+				c.lit2 = c.getPolarity(getId()) ? getId() : -getId();
+				if(c.reWatch(variables, c.lit1) != Clause.ClauseState.UNIT) {
+					units.remove(c); // if a variable is set to be again unassigned, units may vanish
+				}
+			}
 		}
 	}
 
