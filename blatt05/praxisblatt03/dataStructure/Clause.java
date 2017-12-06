@@ -12,8 +12,8 @@ public class Clause {
 	private Vector<Integer> literals;
 
 	/* Watched literals in this clause */
-	private int lit1;
-	private int lit2;
+	public int lit1;
+	public int lit2;
 
 	/**
 	 * Creates a new clause with the given literals.
@@ -26,7 +26,9 @@ public class Clause {
 
 		for(int lit: literals) {
 			int varId = Math.abs(lit);
-			variables.get(varId).getWatchedClauses().add(this);
+			Variable v = variables.get(varId);
+			v.getWatchedClauses().add(this);
+			v.activity++;
 		}
 	}
 
@@ -60,20 +62,20 @@ public class Clause {
 		int newVarId = Math.abs(currentLit);
 		Variable.State newVarState = variables.get(newVarId).getState();
 
-		System.out.println("reWatch for literal "+lit+" in "+this+", watches are "+lit1+", "+lit2);
+		//System.out.println("reWatch for literal "+lit+" in "+this+", watches are "+lit1+", "+lit2);
 		while(numSearched < maxLitIdx) {
 
 			currentLit = getLiterals().get(currentLitIdx);
 			newVarId = Math.abs(currentLit);
 			newVarState = variables.get(newVarId).getState();
-			System.out.print("Looking at "+currentLit);
+			//System.out.print("Looking at "+currentLit);
 
 			// Das neue watched literal muss verschieden zu den beiden aktuellen watched literals der Klausel sein
 			// Problem: Im Falle, dass das einzige freie literal bereits gewatched wird, wird dieses nicht gefunden...
 			if((changeFirstWatcher && currentLit == lit2) || (!changeFirstWatcher && currentLit == lit1)) {
 				currentLitIdx = (currentLitIdx + 1) % maxLitIdx;
 				numSearched++;
-				System.out.println(", but is already watched");
+				//System.out.println(", but is already watched");
 				continue;
 			}
 
@@ -86,10 +88,10 @@ public class Clause {
 				} else {
 					lit2 = currentLit;
 				}
-				System.out.println("\nSuccess: New watch is "+currentLit);
+				//System.out.println("\nSuccess: New watch is "+currentLit);
 				return ClauseState.SUCCESS;
 			} else {
-				System.out.println(", but is nether OPEN nor making the lit SAT");
+				//System.out.println(", but is nether OPEN nor making the lit SAT");
 			}
 
 			currentLitIdx = (currentLitIdx + 1) % maxLitIdx;
@@ -100,23 +102,34 @@ public class Clause {
 		int otherWatchVarId = Math.abs(otherWatchLit);
 		Variable.State otherWatchState = variables.get(otherWatchVarId).getState();
 
-		System.out.println("Other watch is "+otherWatchLit);
+		//System.out.println("Other watch is "+otherWatchLit);
 		//4. UNIT: das zweite watched Literal zeigt auf ein unbelegtes Literal.
 		if(otherWatchState == Variable.State.OPEN) {
-			System.out.println("Unit");
+			//System.out.println("Unit");
 			return ClauseState.UNIT;
 		}
 
 		//3. SAT: das zweite watched literal zeigt auf ein Literal, das zu 1 evaluiert.
 		if(litIsSat(otherWatchLit, variables)) {
-			System.out.println("Sat");
+			//System.out.println("Sat");
 			return ClauseState.SAT;
 		}
 
 		//2. EMPTY: das zweite watched literal dieser Klausel
 		//zeigt auf ein Literal, das zu 0 evaluiert.
-		System.out.println("Empty");
+		//System.out.println("Empty");
 		return ClauseState.EMPTY;
+	}
+
+	public int maxLevel(HashMap<Integer, Variable> variables) {
+		int maxLevel = -1;
+		for(int lit : getLiterals()) {
+			int curLvl = variables.get(Math.abs(lit)).level;
+			if(curLvl > maxLevel) {
+				maxLevel = curLvl;
+			}
+		}
+		return maxLevel;
 	}
 
 	public boolean isWatched(int lit) {
@@ -130,6 +143,13 @@ public class Clause {
 	 */
 	public Vector<Integer> getLiterals() {
 		return literals;
+	}
+
+	public Integer getUnitLiteral() {
+		if(lit1 == lit2) {
+			return lit1;
+		}
+		return -1;
 	}
 
 	/**
@@ -176,7 +196,15 @@ public class Clause {
 		String res = "{ ";
 		for (Integer i : literals)
 			res += i + " ";
-		return res + "}, lit1="+lit1+", lit2="+lit2;
+		return res + "}";
+	}
+
+	public Vector<Variable> getVariables(HashMap<Integer, Variable> variables) {
+		Vector<Variable> ret = new Vector<>();
+		for(int lit : literals) {
+			ret.add(variables.get(Math.abs(lit)));
+		}
+		return ret;
 	}
 
 	public enum ClauseState {

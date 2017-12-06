@@ -1,5 +1,6 @@
 package praxisblatt03.dataStructure;
 
+import java.util.Stack;
 import java.util.Vector;
 import java.util.HashMap;
 
@@ -20,6 +21,21 @@ public class Variable {
 	/* variable ID (range from 1 to n) */
 	private int id;
 
+	/*
+	 *  In diesem Feld speichern Sie die Aktivität der jeweiligen Variable. Dazu verwenden Sie
+	 *  folgende Strategie:
+	 *  Zu Beginn erhält jede Variable die Anzahl ihrer Vorkommen als Aktivität.
+	 *  Jedesmal wenn eine Variable in einer neu gelernten Klausel vorkommt, erhöhen Sie ihre Aktivität (·1.10).
+	 *  Jedesmal wenn Sie eine neue Variable im CDCL Algorithmus wählen, verringern Sie die Aktivitäten aller Variablen (·0.95).
+	 */
+	public float activity;
+
+	/* Grund der Belegung, null bei decision */
+	public Clause reason;
+
+	/* Entscheidungslevel */
+	public int level;
+
 
 	/* Clauses containing this variable */
 	private Vector<Clause> watched;
@@ -33,6 +49,9 @@ public class Variable {
 		this.id = id;
 		state = State.OPEN;
 		watched = new Vector<>();
+		activity = 0;
+		reason = null;
+		level = 0;
 	}
 
 	/**
@@ -64,17 +83,23 @@ public class Variable {
 
 	/**
 	 * Assigns variable with the given value and updates the internal state of
-	 * the corresponding clauses.
+	 * the corresponding clauses. Sets level and reason of this variable.
 	 *
 	 * @param val Belegung, die zugewiesen werden soll
 	 * @param variables Map der Variablen
 	 * @param units  Liste der Klauseln, die gerade unit sind
 	 * @return Kommt es durch die Zuweisung zu einer leeren Klausel, so wird diese zurückgegeben, ansonsten wird null zurückgegeben.
 	 */
-	public Clause assign(boolean val, HashMap<Integer, Variable> variables, Vector<Clause> units) {
+	public Clause assign(boolean val, int lvl, Clause reason, Stack<Variable> stack, HashMap<Integer, Variable> variables, Vector<Clause> units) {
 
 		//Die Variable wird mit dem jeweiligen Wert val belegt.
 		state = val ? State.TRUE : State.FALSE;
+
+		this.reason = reason;
+		level = lvl;
+		stack.push(this);
+
+		System.out.println("Assigning Var"+this.getId()+"="+state + " at lvl="+lvl+", reason="+reason+" (activity="+activity+")");
 
 		//In allen Klauseln, in denen diese Variable beobachtet wird
 		for(Clause clause: getWatchedClauses()) {
@@ -102,7 +127,7 @@ public class Variable {
 
 					}
 				} else {
-					System.out.println("reWatch not needed, "+litId+" not watched in "+clause);
+					//System.out.println("reWatch not needed, "+litId+" not watched in "+clause);
 				}
 			} else { // literal evaluiert zu 1
 				units.remove(clause);
@@ -111,6 +136,15 @@ public class Variable {
 
 		//Gab es im gesamten Prozess keine leere Klauseln, so soll die assign Methode null zurückliefern.
 		return null;
+	}
+
+	public void reset(HashMap<Integer, Variable> variables, Vector<Clause> units) {
+		System.out.println("Resetting Variable "+getId()+" (lvl "+level+")");
+		state = State.OPEN;
+		reason = null;
+		level = 0;
+		for(Clause clause: getWatchedClauses()) {
+		}
 	}
 
 	private String adjacencyListToString() {
@@ -123,8 +157,9 @@ public class Variable {
 
 	@Override
 	public String toString() {
-		String res = "[" + state + " ";
-		res += "\n\tAdjacence List: " + adjacencyListToString();
-		return res + "\n]";
+		return "x"+getId()+"="+getState();
+		//String res = "[" + state + " ";
+		//res += "\n\tAdjacence List: " + adjacencyListToString();
+		//return res + "\n]";
 	}
 }
